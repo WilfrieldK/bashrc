@@ -16,18 +16,18 @@ fi
 TMP_DIR=$(mktemp -d)
 cd "${TMP_DIR}" || return
 
-wget -q https://bitbucket.org/lithiumx08/bash_config/get/master.zip
-unzip -d master master.zip 2>&1 > /dev/null
+wget -q https://github.com/WilfrieldK/bashrc/archive/refs/heads/main.zip
+unzip -d main main.zip 2>&1 > /dev/null
 
-if [ "$(ls --indicator-style=none master/ | wc -l)" -gt "1" ]; then
+if [ "$(ls --indicator-style=none main/ | wc -l)" -gt "1" ]; then
     echo -e 'Problem with extraction! there are more than one directory'
     exit 1
 else
-    extracted_dir="$(ls --indicator-style=none master/)"
-    mv "master/${extracted_dir}" "master/std"
+    extracted_dir="$(ls --indicator-style=none main/)"
+    mv "main/${extracted_dir}" "main/std"
 fi
 
-rsync -a --delete --exclude="install.sh" "master/std/" "${CONFIG_PATH}/std/"
+rsync -a --delete --exclude="install.sh" "main/std/" "${CONFIG_PATH}/std/"
 
 cd "${HOME}" || return
 rm -rf "${TMP_DIR}"
