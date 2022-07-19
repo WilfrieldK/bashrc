@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+
+MY_BASH_PROCESS=$(ps -feo ppid= $$ | tr -d ' ')
+renice -15 "${MY_BASH_PROCESS}"
+ionice -c 1 -p "${MY_BASH_PROCESS}"

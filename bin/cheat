@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Exemples pour un peu pres tout
+# cheat tar
+# cheat 7z
+# cheat python/append+file
+# cheat bash/dict
+# cheat java/mysql
+if [[ "$1" == "help" ]]; then
+    curl "cheat.sh/:${1}"
+else
+    curl "cheat.sh/${1}"
+fi

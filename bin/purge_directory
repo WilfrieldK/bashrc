@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+
+if [[ -z "${1}" ]]; then
+    directory="."
+else
+    directory="${1}"
+fi
+
+echo -e "Attention ce terminal est maintenant en 'nice +15' et 'ionice -c 3'\n"
+MY_BASH_PROCESS=$(ps -feo ppid= $$ | tr -d ' ')
+renice +15 "${MY_BASH_PROCESS}"
+ionice -c 3 -p "${MY_BASH_PROCESS}"
+
+files_per_iteration=100
+total=$(find "${directory}" -type f | wc -l)
+count_max=$(echo "${total}/${files_per_iteration}" | bc)
+for i in $(seq 1 "${count_max}"); do
+        find "${directory}" -type 'f' | head -n ${files_per_iteration} | xargs -I {} rm -f "{}"
+        n=$(( i * "${files_per_iteration}" ))
+        echo "${n} fichiers supprimes"
+done
+
+echo -e "\nAttention ce terminal est en 'nice +15' et 'ionice -c 3'\n"

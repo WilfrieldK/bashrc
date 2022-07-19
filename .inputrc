@@ -1,0 +1,32 @@
+# Ajouter "sudo" au début de la ligne
+"\es": "\C-asudo \C-e"
+
+# lister/se deplacer (alt + lettre)
+# stat
+"\eh": "\C-a\eDstat\C-e"
+# cd
+"\ej": "\C-a\eDcd\C-e"
+# ls
+"\ek": "\C-a\eDls\C-e"
+# ll
+"\el": "\C-a\eDll\C-e"
+# lla
+"\em": "\C-a\eDlla\C-e"
+
+
+# afficher/modifier (alt + maj + lettre)
+# vim
+"\eH": "\C-a\eDvim\C-e"
+# cat
+"\eJ": "\C-a\eDcat\C-e"
+# less
+"\eK": "\C-a\eDless\C-e"
+# Ajoute | less en fin de ligne
+"\eM": "\C-e | less "
+
+# Magic Space, reutiliser les arguments des anciennes commandes avec !:1 :!2 etc...
+Space: magic-space
+
+# Expansion des variables avec alt + a
+"\ea": shell-expand-line
+

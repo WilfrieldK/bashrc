@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Suppression d'un host dans le known_hosts
+if [[ "${1}" == '' ]] ; then
+    echo "Merci d'indiquer l'IP du serveur";
+    exit;
+fi
+sed -i /"${1}"/d ~/.ssh/known_hosts

@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+# Decouper un fichier SQL par table
+#
+
+if [ ${#} -lt 1 ] ; then
+    #echo "USAGE $0 DUMP_FILE [TABLE]"
+    echo "USAGE: $(basename "${0}") DUMP_FILE"
+    exit 2
+fi
+
+if [[ ! -f "${1}" ]]; then
+    echo "This file does not exist"
+    exit 2
+else
+    SQL_FILENAME="${1}"
+fi
+
+WORKING_DIRECTORY="$(pwd)/sql_split"
+
+if [[ ! -d "${WORKING_DIRECTORY}" ]]; then
+    mkdir -p "${WORKING_DIRECTORY}"
+fi
+
+cp "${SQL_FILENAME}" "${WORKING_DIRECTORY}/"
+cd "${WORKING_DIRECTORY}" || return
+
+TABLE_PATTERN="-- Table structure for table"
+csplit -n3 -s -ftable "${SQL_FILENAME}" "/${TABLE_PATTERN}/" "{*}"
+
+# A partir de la on a les fichiers au format table000, table001
+# Le dernier fichier contenant egalement toutes les alterations de table ayant lieu a la fin du fichier
+# le dump des events, routines, etc...
+
+for table_file in $(ls -1 table*); do
+    table_number=$(echo "${table_file}" | sed -E s/'table([0-9]{3})'/'\1'/g)
+    table_name=$(head -n50 "${table_file}" | grep -- "${TABLE_PATTERN}" | awk -F'`' '{print $2}')
+
+    if [[ "${table_file}" == "table000" ]]; then
+        mv "${table_file}" "${table_number}-head.sql"
+    else
+        mv "${table_file}" "${table_number}-${table_name}.sql"
+    fi
+done
+
+rm -f "${SQL_FILENAME}"

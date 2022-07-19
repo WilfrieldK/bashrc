@@ -1,0 +1,11 @@
+#!/bin/bash
+
+if [[ "${1}" == "--help" ]] || [[ "${1}" == "-h" ]]; then
+    echo "gzip and rename parameter file"
+    exit 1
+fi
+
+
+for log_file in "${@}"; do
+    gzip "${log_file}" && mv "${log_file}.gz" "${log_file}"
+done

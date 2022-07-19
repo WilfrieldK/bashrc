@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+
+if [ -z $1 ]; then
+    echo -e "Please specify a domain"
+    exit 0
+fi
+
+if [ ! $(command -v csvtool) ]; then
+    echo -e "Plase install csvtool"
+    exit 0
+fi
+
+domain=$(echo $1 | sed s#'%'#'%25'# | sed s#'*'#'%25'#)
+
+
+curl -s "https://crt.sh/?q=${domain}&output=json" | jq -r '["DOMAIN", "RENEW_DATE", "NOT_BEFORE", "NOT_AFTER", "ISSUER"], ["------", "----------", "----------", "---------", "------"], (.[] | [.name_value, .min_entry_timestamp, .not_before, .not_after, .issuer_name]) | @csv' | csvtool readable - | cut -c"1-$COLUMNS"
+

@@ -1,0 +1,215 @@
+#!/bin/bash
+
+#VERSION=1.0
+
+if [ ! "$(command -v ncat)" ] ; then
+    echo -e "Please install ncat (centos6 => nmap ; centos7 => nc)"
+    exit 255
+fi
+
+_check() {
+    # Si on envoie des donnees mais aucun fichier n'est specifie
+    if [[ "${SEND}" == "true" ]] && [[ "$FILENAME" == "false" ]]; then
+        echo -e "Euhhhhhh ... J'envoie quoi ?"
+        exit 254
+    fi
+
+    # On ne peut pas envoyer et recevoir en meme temps
+    if [[ "${SEND}" == "true" ]] && [[ "${RECEIVE}" == "true" ]]; then
+        echo -e "Non j'ai pas envie"
+        exit 253
+    fi
+
+    # Il faut envoyer ou recevoir des donnees
+    if [[ "${SEND}" == "false" ]] && [[ "${RECEIVE}" == "false" ]]; then
+        echo -e "Desole on est ferme, reviens demain"
+        exit 252
+    fi
+
+    # Ces 2 options sont incompatibles
+    if [[ "${HOST}" != "false" ]] && [[ "${LISTEN}" == "true" ]]; then
+        echo -e "T'y vas en free-style ?"
+        exit 251
+    fi
+}
+
+_send() {
+    if [[ "${verbose}" == "true" ]]; then
+        echo -e "(send) enter"
+        nc_verbose=" -vv "
+    else
+        nc_verbose=""
+    fi
+
+    if [[ "${SSL}" == "true" ]]; then
+        nc_ssl=" --ssl "
+    else
+        nc_ssl=""
+    fi
+
+    DATA_NAME="$(basename "${FILENAME}")"
+    TYPE=""
+
+    if [ -d "${FILENAME}" ]; then
+        TYPE="directory"
+    elif [ -f "${FILENAME}" ]; then
+        TYPE="file"
+    fi
+
+    TMP_FILE="$(mktemp)"
+    echo "${TYPE};${DATA_NAME}" > "${TMP_FILE}"
+
+    if [[ "${verbose}" == "true" ]]; then
+        echo -e "(send) File to send: ${FILENAME}"
+        echo -e "(send) File name: ${DATA_NAME}"
+        echo -e "(send) Type: ${TYPE}"
+        echo -e "(send) Tmp file: ${TMP_FILE}"
+    fi
+
+    echo -e "[+] send info"
+    if [[  "${LISTEN}" == "true" ]]; then
+        ncat "${nc_ssl}" "${nc_verbose}" --send-only -l 51418 < "${TMP_FILE}"
+    else
+        ncat "${nc_ssl}" "${nc_verbose}" --send-only "${HOST}" 51418 < "${TMP_FILE}"
+    fi
+    echo -e "[+] sent"
+
+    echo -e "[+] send data"
+    if [ "${TYPE}" == "file" ]; then
+        if [[ "${LISTEN}" == "true" ]]; then
+            ncat "${nc_ssl}" "${nc_verbose}" --send-only -l 51418 < "${FILENAME}"
+        else
+            sleep 0.5
+            ncat "${nc_ssl}" "${nc_verbose}" --send-only "${HOST}" 51418 < "${FILENAME}"
+        fi
+        echo -e "[+] sent"
+    elif [ "${TYPE}" == "directory" ]; then
+        if [[ "${LISTEN}" == "true" ]]; then
+            tar c "${FILENAME}" | ncat "${nc_ssl}" "${nc_verbose}" --send-only -l 51418
+        else
+            sleep 0.5
+            tar c "${FILENAME}" | ncat "${nc_ssl}" "${nc_verbose}" --send-only "${HOST}" 51418
+        fi
+        echo -e "[+] sent"
+    else
+        echo "[X] Unknown data type"
+    fi
+}
+
+_receive() {
+    if [[ "${verbose}" == "true" ]]; then
+        echo -e "(receive) enter"
+        nc_verbose=" -vv "
+    else
+        nc_verbose=""
+    fi
+
+    if [[ "${SSL}" == "true" ]]; then
+        nc_ssl=" --ssl "
+    else
+        nc_ssl=""
+    fi
+
+    TYPE=""
+    TMP_FILE="$(mktemp)"
+
+    # Send information about data to send
+    # filename and type
+    echo -e "[+] waiting info"
+    if [[ "${LISTEN}" == "true" ]]; then
+        # le -p est incompatible avec ncat bsd
+        # mais le fait de l'enlever ne sembe pas poser probleme
+        #ncat ${nc_ssl} ${nc_verbose} -l -p 51418 > "${TMP_FILE}"
+        ncat "${nc_ssl}" "${nc_verbose}" --recv-only -l 51418 > "${TMP_FILE}"
+    else
+        ncat "${nc_ssl}" "${nc_verbose}" --recv-only "${HOST}" 51418 > "${TMP_FILE}"
+    fi
+    echo -e "[+] received"
+
+    # Read informations about what we are downloading
+    DATA_NAME=$(cut -d';' -f 2 "${TMP_FILE}")
+    TYPE=$(cut -d';' -f 1 "${TMP_FILE}")
+
+    # If verbose display informations
+    if [[ "${verbose}" == "true" ]]; then
+        echo -e "(receive) File to receive: ${DATA_NAME}"
+        echo -e "(receive) Type: ${TYPE}"
+        echo -e "(receive) Tmp file: ${TMP_FILE}"
+    fi
+
+    # Receive data
+    echo -e "[+] waiting data"
+    RECEIVED=0
+    if [ "${TYPE}" == "file" ]; then
+        if [[ "${LISTEN}" == "true" ]]; then
+            # le -p est incompatible avec ncat bsd
+            # mais le fait de l'enlever ne sembe pas poser probleme
+            #ncat -l -p 51418 > "${DATA_NAME}"
+            ncat "${nc_ssl}" "${nc_verbose}" --recv-only -l 51418 > "${DATA_NAME}"
+        else
+            sleep 0.5
+            ncat "${nc_ssl}" "${nc_verbose}" --recv-only "${HOST}" 51418 > "${DATA_NAME}"
+        fi
+        echo -e "[+] received"
+        RECEIVED=1
+    elif [ "${TYPE}" == "directory" ]; then
+        if [[ "${LISTEN}" == "true" ]]; then
+            # le -p est incompatible avec ncat bsd
+            # mais le fait de l'enlever ne sembe pas poser probleme
+            #ncat -l -p 51418 > "${DATA_NAME}.tar"
+            ncat "${nc_ssl}" "${nc_verbose}" --recv-only -l 51418 > "${DATA_NAME}.tar"
+        else
+            sleep 0.5
+            ncat "${nc_ssl}" "${nc_verbose}" --recv-only "${HOST}" 51418 > "${DATA_NAME}.tar"
+        fi
+        echo -e "[+] received"
+        RECEIVED=1
+    else
+        echo "[X] Unknown data type"
+    fi
+
+    # If we received a dir, we need to extract it from tarball
+    if [ "${TYPE}" == "directory" ] && [[ "$RECEIVED" == 1 ]]; then
+        echo -e "[+] extracting dir from tarball"
+        tar xf "${DATA_NAME}.tar"
+        echo -e "[+] extracted"
+        echo -e "[+] remove tarball"
+        rm -f "${DATA_NAME}.tar"
+        echo -e "[+] removed"
+    fi
+}
+
+
+source "${CONFIG_PATH}/std/lib/optparse.bash"
+optparse.define short=v long=verbose desc="Verbose" variable=verbose value=true default=false
+optparse.define short=s long=send desc="Send data (need to define -f too)" variable=SEND value=true default=false
+optparse.define short=r long=receive desc="Receive data" variable=RECEIVE value=true default=false
+optparse.define short=l long=listen desc="Listen mode (unusable with -h/--host)" variable=LISTEN value=true default=false
+optparse.define short=h long=host desc="Host to connect (unusable with -l/--listen)" variable=HOST default=false
+optparse.define short=S long=ssl desc="Activation de SSL" variable=SSL value=true default=false
+optparse.define short=f long=file desc="File/directory to send" variable=FILENAME default=false
+source "$( optparse.build )"
+
+# On parse les arguments
+
+if [[ ${verbose} == "true" ]]; then
+    echo -e "----------------------"
+    echo -e "(DEBUG) receive: $RECEIVE"
+    echo -e "(DEBUG) send: $SEND"
+    echo -e "(DEBUG) listen: $LISTEN"
+    echo -e "(DEBUG) host: $HOST"
+    echo -e "(DEBUG) ssl: $SSL"
+    echo -e "(DEBUG) file: $FILENAME"
+    echo -e "----------------------"
+fi
+
+_check
+
+
+if [[ ${SEND} == "true" ]] && [[ ${RECEIVE} == "false" ]]; then
+    _send
+elif [[ ${RECEIVE} == "true" ]] && [[ ${SEND} == "false" ]]; then
+    _receive
+else
+    echo -e "wormhole --help pour l'aide"
+fi

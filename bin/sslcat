@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Variables globales ----------------------------------------------------------
+VERSION=1.0
+
+
+# Vérifications  --------------------------------------------------------------
+if [ ! -r "$OPTPARSE_LIB" ]; then
+    echo "Me no finds the optparse lib! PANIC!!"
+    sleep 2
+    echo "O_o"
+    sleep 1
+    exit
+fi
+
+[ "$(command -v openssl)" ] || exit 255
+
+# Define options --------------------------------------------------------------
+source "${CONFIG_PATH}/std/lib/optparse.bash"
+optparse.define short=v long=verbose desc="Display moar data" variable=verbose value=true default=false
+optparse.define short=m long=modulus desc="Generates modulus fingerprint" variable=modulus value=true default=false
+optparse.define short=V long=version desc="Afficher la version" variable=version value=true default=false
+source "$( optparse.build )"
+
+if [ "$version" == "true" ];then
+    echo "sslcat v$VERSION"
+    exit
+fi
+
+usage() {
+    echo "Usage: sslcat [--modulus] [--verbose] <inputSSLfile>"
+    exit 0
+}
+
+# Vérifications  --------------------------------------------------------------
+
+# Have we something as input ?
+if [[ -z "${BASH_ARGV[0]}" ]]; then
+    usage
+    exit
+fi
+
+# Is the input mk'ayy ?
+if [[ -r "${BASH_ARGV}" ]]; then
+    sslthing="${BASH_ARGV}"
+else
+    echo "[!] File '${BASH_ARGV}' is all shitty."
+    echo
+    usage
+    exit
+fi
+
+# Adjust the options if needed ------------------------------------------------
+if [ "$verbose" = "true" ]; then
+    common_fields="-text"
+else
+    common_fields="-noout"
+fi
+
+if [[ $(head -1 "$sslthing" | grep "BEGIN CERTIFICATE REQUEST") ]]; then
+    ssltype="req"
+    fields="-subject"
+elif  [[ $(head -1 "$sslthing" | grep "BEGIN CERTIFICATE") ]]; then
+    ssltype="x509"
+    fields="-dates -issuer -subject"
+elif  [[ $(head -1 "$sslthing" | grep -P "BEGIN (RSA )?PRIVATE KEY") ]]; then
+    ssltype="rsa"
+else
+    echo "Could not identify this SSL object. Iz not CSR nor CRT nor prayvet KEEE??"
+    exit
+fi
+
+if [[ "$modulus" == "true" && "$verbose" == "true" ]]; then
+        fields="-modulus"
+        common_fields="-noout"
+fi
+
+if [[ "$modulus" == "true" && "$verbose" == "false" ]]; then
+    openssl "$ssltype" -in "$sslthing" -noout -modulus
+else
+    openssl "$ssltype" -in "$sslthing" $common_fields $fields
+fi

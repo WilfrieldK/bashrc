@@ -1,0 +1,4 @@
+#!/bin/bash
+# On affiche les caracteres blancs (espace/tabulation/EOL ...)
+
+sed 's/ /·/g;s/\t/￫/g;s/\r/§/g;s/$/¶/g'

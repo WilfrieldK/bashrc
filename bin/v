@@ -1,0 +1,68 @@
+#!/bin/bash
+
+
+# Requirements
+if [ "$(command -v bc)" ]; then
+    is_bc=1
+else
+    is_bc=0
+    echo -e "!!! bc isnt installed! No memory informations."
+    echo -e ""
+fi
+
+
+# Miscellaneous
+OS_NAME=""
+OS_VERSION=""
+if [ -f /etc/os-release ] ; then
+    OS_NAME="$(grep --color=never -E "^NAME=" /etc/os-release | cut -d'=' -f 2)"
+    OS_VERSION="Version: $(grep --color=never -E "^VERSION=" /etc/os-release | cut -d'=' -f 2)"
+elif [ -f /etc/system-release ] ; then
+    OS_NAME="$(cat /etc/system-release)"
+elif [ -f /etc/redhat-release ] ; then
+    OS_NAME="$(cat /etc/redhat-release)"
+fi
+KERNEL="$(uname -r)"
+ARCH="$(uname -p)"
+
+# CPU
+PROC_NB="0"
+[ "$(command -v nproc)" ] && PROC_NB=$(nproc --all)
+CPU_USAGE=$(grep --color=never 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}')
+CPU_NAME=$(grep 'model name' /proc/cpuinfo | awk -F':' '{print $2}' | head -n1 | sed s/'^ '/''/)
+LOAD_AVG=$(awk '{print $1 " (1m) ||| " $2 " (5m) ||| " $3 " (15m)"}' /proc/loadavg | column -t)
+
+# Memory
+if [ "${is_bc}" -eq "1" ]; then
+    TOTAL=$(echo "scale=2; $(grep -E "^MemTotal:" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+    BUFFERS=$(echo "scale=2; $(grep -E "^Buffers:" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+    AVAILABLE=$(echo "scale=2; $(grep -E "^MemAvailable:" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+    FREE=$(echo "scale=2; $(grep -E "^MemFree:" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+    CACHED=$(echo "scale=2; $(grep -E "^Cached:" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+    USED=$(echo "scale=2; $(grep -E "^Active\(anon\):" /proc/meminfo | awk '{print $2}')/1000/1000" | bc | sed -r "s#^\.#0.#")
+fi
+
+# Disks
+DISKS=$(df -lh | awk '{if (($NF == "/" || $NF ~ "/home" || $NF == "/save" || $NF == "/boot") && $NF != $1 ) { print $NF": "$(NF-3)"/"$(NF-4) " ("$(NF-1)")"" |||"}}')
+echo -e "==========  MISCELLANEOUS  ==========="
+echo -e "OS: ${OS_NAME} ||| ${OS_VERSION}" | column -t -s '|||'
+echo -e "Kernel: ${KERNEL} ||| Arch: ${ARCH}" | column -t -s '|||'
+echo -e ""
+echo -e "==========  CPU  ==========="
+echo -e "Name: ${CPU_NAME}"
+echo -e "Cores: ${PROC_NB} ||| Usage: ${CPU_USAGE}%" | column -t -s '|||'
+echo -e "Load average: ${LOAD_AVG}" | column -t -s '|||'
+echo -e ""
+if [ "${is_bc}" -eq "1" ]; then
+    echo -e "==========  MEMORY  ==========="
+    echo -e "Used: ${USED} Go ||| Total: ${TOTAL} Go" | column -t -s '|||'
+    echo -e "Buffers: ${BUFFERS} Go ||| Cached: ${CACHED} Go ||| Free: ${FREE} Go ||| Available: ${AVAILABLE} Go" | column -t -s '|||'
+    echo -e ""
+fi
+echo -e "==========  DISKS  ==========="
+while IFS='|||' read -ra ADDR; do
+    for i in "${ADDR[@]}"; do
+        [[ "${i}" != "" ]] && echo "${i}"
+    done
+done <<< "$DISKS"
+echo -e ""

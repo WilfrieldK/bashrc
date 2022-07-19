@@ -1,0 +1,6 @@
+#!/bin/bash
+#
+
+if [ -n "${1}" ] || [ -n "${2}" ]; then
+    diff -y "${1}" "${2}" | grep -E --color=auto $' \|\t| >\t| <\t'
+fi

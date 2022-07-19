@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ ! "$(command -v wget)" ]; then
+    echo -e 'wget isnt installed! please install it'
+    exit 1
+fi
+if [ ! "$(command -v unzip)" ]; then
+    echo -e 'unzip isnt installed! please install it'
+    exit 1
+fi
+if [ ! "$(command -v rsync)" ]; then
+    echo -e 'rsync isnt installed! please install it'
+    exit 1
+fi
+
+TMP_DIR=$(mktemp -d)
+cd "${TMP_DIR}" || return
+
+wget -q https://bitbucket.org/lithiumx08/bash_config/get/master.zip
+unzip -d master master.zip 2>&1 > /dev/null
+
+if [ "$(ls --indicator-style=none master/ | wc -l)" -gt "1" ]; then
+    echo -e 'Problem with extraction! there are more than one directory'
+    exit 1
+else
+    extracted_dir="$(ls --indicator-style=none master/)"
+    mv "master/${extracted_dir}" "master/std"
+fi
+
+rsync -a --delete --exclude="install.sh" "master/std/" "${CONFIG_PATH}/std/"
+
+cd "${HOME}" || return
+rm -rf "${TMP_DIR}"
+
+CONFIG_OWNER=$(stat -c "%U:%G" "${CONFIG_PATH}")
+chown -R "${CONFIG_OWNER}" "${CONFIG_PATH}"

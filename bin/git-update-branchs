@@ -1,0 +1,15 @@
+#!/bin/bash
+
+for i in $(git branch -r) ; do
+    j=$(echo "$i" | awk -F'/' '{print $(NF)}')
+    if [[ $j != "HEAD"  ]] ; then
+        if [[ $j != "master"  ]] ; then
+            if [[ $j != "->"  ]] ; then
+                git branch | grep "${j}" > /dev/null
+                if [[ $? -eq 1  ]] ; then
+                    git branch "$j" "$i"
+                fi
+            fi
+        fi
+    fi
+done

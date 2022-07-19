@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+
+# DEFAULT VALUES
+#COMPLEX=1
+#SIZE=20
+
+### HINT ###
+source "${CONFIG_PATH}/std/lib/optparse.bash"
+optparse.define short=c long=complex desc="Ajoute des caracteres speciaux" variable=COMPLEX default=false value=true
+optparse.define short=s long=size desc="Taille du mot de passe [default=20]" variable=SIZE default=20
+source "$( optparse.build )"
+
+for arg in "${@}"; do
+    if [[ "${arg}" == '-h' ]]; then
+        exit
+    fi
+done
+
+
+if [[ "${COMPLEX}" == "true" ]]; then
+    < /dev/urandom tr -dc "[:alnum:][:punct:]" | head -c"${SIZE}" ; echo
+else
+    < /dev/urandom tr -dc abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789 | head -c"${SIZE}" ; echo
+fi
