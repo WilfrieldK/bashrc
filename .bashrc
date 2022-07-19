@@ -1,5 +1,5 @@
 #!/bin/bash
-# Adrien std config
+# Wilfrield std config
 # .bashrc
 
 # Source global definitions
